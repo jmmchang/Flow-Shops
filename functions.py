@@ -2,41 +2,20 @@ import numpy as np
 from scipy.optimize import linprog
 from ortools.sat.python import cp_model
 import matplotlib.pyplot as plt
+import seaborn as sns
 
-def generate_random_instance(num_jobs = 50, num_machines = 10):
+def generate_random_instance(num_jobs = 200, num_machines = 5):
     jobs_data = np.zeros([num_jobs, num_machines], dtype = int)
     for i in range(num_jobs):
         for j in range(num_machines):
-            jobs_data[i, j] = np.random.randint(5, 30)
+            jobs_data[i, j] = np.random.randint(5, 31)
 
     return jobs_data
 
-def plot(schedule):
-    fig, ax = plt.subplots(figsize=(8, 4))
-    bar_height = 0.8
-
-    for job_id, ops in schedule.items():
-        for machine_id, (st, proc) in ops.items():
-            ax.broken_barh(
-                [(st, proc)],
-                (machine_id - bar_height / 2, bar_height),
-                facecolors=f"C{job_id}",
-                edgecolor="black",
-                label=f"Job{job_id}" if machine_id == 0 else ""
-            )
-
-    ax.set_yticks([m for m in range(len(next(iter(schedule.values()))))])
-    ax.set_yticklabels([f"M{m}" for m in range(len(next(iter(schedule.values()))))])
-    ax.set_xlabel("Time")
-    ax.set_title("Flowshop 排程甘特圖")
-    ax.legend(loc="upper right")
-    plt.grid(True)
-    plt.tight_layout()
-    plt.show()
-
 class ConstraintProgramming:
-    def __init__(self, jobs_data):
+    def __init__(self, jobs_data, plot = False):
         self.jobs_data = jobs_data.astype(int)
+        self.plot = plot
 
     def run(self):
         n = len(self.jobs_data)
@@ -65,24 +44,46 @@ class ConstraintProgramming:
         model.minimize(makespan)
 
         solver = cp_model.CpSolver()
-        solver.parameters.max_time_in_seconds = 30
+        solver.parameters.max_time_in_seconds = 120
         result = solver.Solve(model)
 
         if result in (cp_model.OPTIMAL, cp_model.FEASIBLE):
             print(f'Makespan: {solver.Value(makespan)}')
 
-            for j in range(m):
-                seq = sorted(
-                    [(solver.Value(start[i, j]), i) for i in range(n)], key = lambda x: x[0])
-                order = [f'Job{i}' for _, i in seq]
-                times = [(solver.Value(start[i, j]), solver.Value(end[i, j]))
-                         for _, i in seq]
-                print(f'\nMachine {j}:')
-                for idx, job in enumerate(order):
-                    s, e = times[idx]
-                    print(f'  {job}: start={s}, end={e}')
-        else:
-            print('No solution found.')
+        if self.plot:
+            schedule = {}
+            for i in range(n):
+                schedule[i] = {}
+                for j in range(m):
+                    st = solver.Value(start[i, j])
+                    dur = self.jobs_data[i, j]
+                    schedule[i][j] = (st, dur)
+
+            jobs = list(schedule.keys())
+            fig, ax = plt.subplots(figsize=(20, 16))
+            palette = sns.color_palette("hls", len(jobs))
+            job_colors = dict(zip(jobs, palette))
+            bar_height = 0.8
+            for job_id, ops in schedule.items():
+                for machine_id, (st, dur) in ops.items():
+                    ax.broken_barh(
+                        [(st, dur)],
+                        (machine_id - bar_height / 2, bar_height),
+                        facecolors = job_colors[job_id],
+                        edgecolor = "black",
+                        label = (f"Job{job_id}" if machine_id == 0 else "")
+                    )
+
+            ax.set_yticks(range(m))
+            ax.set_yticklabels([f"M{j}" for j in range(m)])
+            ax.set_xlabel("Time")
+            ax.set_ylabel("Machine")
+            ax.set_title("Flow-Shops Gantt Chart")
+
+            handles, labels = ax.get_legend_handles_labels()
+            by_label = dict(zip(labels, handles))
+            ax.legend(by_label.values(), by_label.keys(), loc = "upper left")
+            plt.show()
 
 class Sevastjanov:
     def __init__(self, jobs_data):
@@ -104,7 +105,7 @@ class Sevastjanov:
                     row += 1
 
     @staticmethod
-    def find_permutations_of_vectors(vectors):
+    def find_permutation_of_vectors(vectors):
         dim = len(vectors[0])
         n = len(vectors)
         remaining_index = list(range(n))
@@ -147,6 +148,6 @@ class Sevastjanov:
             for j in range(m - 1):
                 vectors[i, j] = self.jobs_data[i, j] - self.jobs_data[i, j + 1]
 
-        permutations = self.find_permutations_of_vectors(vectors)
+        permutations = self.find_permutation_of_vectors(vectors)
 
-        return self.flow_shops_makespan(self.jobs_data[permutations, :])
+        return int(self.flow_shops_makespan(self.jobs_data[permutations, :]))
