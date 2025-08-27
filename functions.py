@@ -8,7 +8,7 @@ def generate_random_instance(num_jobs = 200, num_machines = 5):
     jobs_data = np.zeros([num_jobs, num_machines], dtype = int)
     for i in range(num_jobs):
         for j in range(num_machines):
-            jobs_data[i, j] = np.random.randint(5, 31)
+            jobs_data[i, j] = np.random.randint(5, 51)
 
     return jobs_data
 
@@ -44,7 +44,7 @@ class ConstraintProgramming:
         model.minimize(makespan)
 
         solver = cp_model.CpSolver()
-        solver.parameters.max_time_in_seconds = 120
+        solver.parameters.max_time_in_seconds = 600
         result = solver.Solve(model)
 
         if result in (cp_model.OPTIMAL, cp_model.FEASIBLE):
