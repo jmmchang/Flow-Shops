@@ -1,2 +1,1 @@
-Comparison between CP and Sevast'janov's algorithm.
-See Dorit S. Hochbaum. 1997. Approximation Algorithms for NP-Hard Problems
+Comparison between CP, Slope heuristic, and Sevast'janov's algorithm.
