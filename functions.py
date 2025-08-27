@@ -1,4 +1,5 @@
 import numpy as np
+from anyio import sleep
 from scipy.optimize import linprog
 from ortools.sat.python import cp_model
 import matplotlib.pyplot as plt
@@ -8,7 +9,7 @@ def generate_random_instance(num_jobs = 200, num_machines = 5):
     jobs_data = np.zeros([num_jobs, num_machines], dtype = int)
     for i in range(num_jobs):
         for j in range(num_machines):
-            jobs_data[i, j] = np.random.randint(5, 51)
+            jobs_data[i, j] = np.random.randint(1, 31)
 
     return jobs_data
 
@@ -44,7 +45,7 @@ class ConstraintProgramming:
         model.minimize(makespan)
 
         solver = cp_model.CpSolver()
-        solver.parameters.max_time_in_seconds = 600
+        solver.parameters.max_time_in_seconds = 300
         result = solver.Solve(model)
 
         if result in (cp_model.OPTIMAL, cp_model.FEASIBLE):
@@ -84,6 +85,41 @@ class ConstraintProgramming:
             by_label = dict(zip(labels, handles))
             ax.legend(by_label.values(), by_label.keys(), loc = "upper left")
             plt.show()
+
+class SlopeHeuristic:
+    def __init__(self, jobs_data):
+        self.jobs_data = jobs_data
+
+    def slope_index(self, job_id):
+        slope_index = 0
+        m = len(self.jobs_data[0])
+        for col in range(1, m + 1):
+            slope_index -= (m - (2*col - 1)) * self.jobs_data[job_id, col - 1]
+
+        return slope_index
+
+    @staticmethod
+    def flow_shops_makespan(jobs_data):
+        n, m = jobs_data.shape[0], jobs_data.shape[1]
+        complete_time = [[0]*(m+1) for _ in range(n+1)]
+
+        for i in range(1, n+1):
+            for j in range(1, m+1):
+                complete_time[i][j] = max(complete_time[i-1][j], complete_time[i][j-1]) + jobs_data[i-1][j-1]
+
+        return complete_time[n][m]
+
+    def run(self):
+        n = len(self.jobs_data)
+        slope_indices = [0] * n
+        for job_id in range(n):
+            slope_indices[job_id] = self.slope_index(job_id)
+
+        indices = np.argsort(slope_indices)
+        indices = indices[::-1]
+        self.jobs_data = self.jobs_data[indices, :]
+
+        return int(self.flow_shops_makespan(self.jobs_data))
 
 class Sevastjanov:
     def __init__(self, jobs_data):
