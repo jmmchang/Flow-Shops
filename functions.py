@@ -5,7 +5,7 @@ from ortools.sat.python import cp_model
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-def generate_random_instance(num_jobs = 200, num_machines = 5):
+def generate_random_instance(num_jobs = 100, num_machines = 5):
     jobs_data = np.zeros([num_jobs, num_machines], dtype = int)
     for i in range(num_jobs):
         for j in range(num_machines):
@@ -45,7 +45,7 @@ class ConstraintProgramming:
         model.minimize(makespan)
 
         solver = cp_model.CpSolver()
-        solver.parameters.max_time_in_seconds = 300
+        solver.parameters.max_time_in_seconds = 600
         result = solver.Solve(model)
 
         if result in (cp_model.OPTIMAL, cp_model.FEASIBLE):
